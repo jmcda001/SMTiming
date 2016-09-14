@@ -29,6 +29,7 @@ function testTiming() {
 
     exampleTiming.print();
     exampleTiming.display();
+    exampleTiming.nonPreemptive();
 }
 
 function initialize() {

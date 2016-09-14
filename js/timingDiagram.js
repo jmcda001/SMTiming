@@ -3,18 +3,27 @@ function Task(name, period, execTime) {
     this.name = name;
     this.period = period;
     this.execTime = execTime;
+    this.execution = []; // x: executing, r: ready/waiting, i: idle
 }
 
-Task.prototype.createTableRow = function(period,hyperPeriod) {
-    var idle = this.period - this.execTime
-    var empty = '<td colspan="'+idle+'"></td>';
-    var exec = '<td colspan="'+this.execTime+'" class="executing"></td>';
-
-    var row = '<tr><td>'+this.name+'</td><td colspan="'+this.period+'"></td>';
-    for (var i = 0;i < hyperPeriod;i += this.period) {
-        row += exec + empty;
+Task.prototype.isBusy(step) {
+    if (step < this.execution.length && this.execution[step] == 'x') {
+        return true;
     }
-    row += '</tr>';
+    return false;
+}
+
+Task.prototype.createTableRow = function(hyperPeriod) {
+    var row = '<td></td>';
+    for (var timeStep = 0;timeStep < hyperPeriod;timeStep++) {
+        if (timeStep < this.execution.length && this.execution[timeStep] == 'x') {
+            row += '<td class="executing"></td>';
+        } else if (timeStep < this.execution.length && this.execution[timeStep] == 'r') {
+            row += '<td class="idle"></td>';
+        } else {
+            row += '<td></td>';
+        }
+    }
     return row;
 }
 
@@ -80,10 +89,11 @@ TimingDiagram.prototype.display = function() {
     var table = $('<table></table>').addClass('timingDiagram');//.addId(name+'Table');
     table.append('<caption>Timing Diagram</caption>');
     /* Set up each task */
+    /* TODO: Redo this using the execute function. CreateTableRow will be changed to be called after
     for (task in this.tasks) {
         var row = this.tasks[task].createTableRow(this.period,this.hyperPeriod);
         table.append(row);
-    }
+    }*/
 
     table.append(this.timeSteps());
 
@@ -93,11 +103,31 @@ TimingDiagram.prototype.display = function() {
 
 TimingDiagram.prototype.nonPreemptive = function() {
     var table = $('<table></table>').addClass('timingDiagram');//.addId(name+'Table');
-    table.append('<caption>Timing Diagram</caption>');
+    table.append('<caption>Timing Diagram (Non-preemptive)</caption>');
 
-
-
+    var busy = false;
+    var ready = [];
+    var executing = [];
+    for (var timeStep = 0;timeStep < this.hyperPeriod;timeStep+=this.period) {
+        busy = false;
+        /* Is the processor still busy? */
+        for (task in executing) {
+            if (executing[task].isBusy(timeStep)) {
+                busy = true;
+            } else {
+                executing.splice(task,1);
+            }
+        }
+        /* Determine which tasks are ready to execute */
+        for (task in this.tasks) {
+            if (!busy && this.tasks[task].isReady(timeStep)) {
+                this.tasks[task].execute(timeStep);
+                busy = true;
+            }
+        }
+    }
 
     this.div.append('<p>Period: '+this.period+'<br>Hyper Period: '+this.hyperPeriod+'</p>');
     this.div.append(table);
 }
+
