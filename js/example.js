@@ -1,3 +1,5 @@
+var system;
+
 function testSM() {
     var exampleSM = new StateMachine('Example',$('#stateMachineDiv')); // (name, div)
 
@@ -22,17 +24,44 @@ function testSM() {
 }
 
 function testTiming() {
-    var exampleTiming = new TimingDiagram('Example',$('#timingDiv'));
+    system = new TimingDiagram('Example',$('#timingDiv'));
 
-    exampleTiming.addTask(new Task('T1',10,4));
-    exampleTiming.addTask(new Task('T2',15,4));
+    system.addTask(new Task('T1',10,4));
+    system.addTask(new Task('T2',15,4));
+    system.addTask(new Task('T3',20,4));
 
-    exampleTiming.print();
-    exampleTiming.display();
-    exampleTiming.nonPreemptive();
+    generateTimingDiagram();
+    generateNonpreemptiveSchedule();
+}
+
+function addTask() {
+    var name = $('#taskName')[0].value;
+    var period = $('#taskPeriod')[0].value;
+    var execTime = $('#taskExecTime')[0].value;
+
+    if (!system) {
+        system = new TimingDiagram('',$('#timingDiv'));
+    }
+
+    system.addTask(new Task(name,period,execTime));
+    system.clear();
+    $('#summary').append(system.generateSummary());
+}
+
+function generateTimingDiagram() {
+    if (!system) { return; }
+    $('#timingDiagram').prepend(system.generateTimingDiagram());
+}
+
+function generateNonpreemptiveSchedule() {
+    if (!system) { return; }
+    $('#nonpreemptiveSchedule').prepend(system.generateNonpreemptiveSchedule());
 }
 
 function initialize() {
+    $('#addTaskButton').on('click',addTask);
+    $('#generateTimingDiagram').on('click',generateTimingDiagram);
+    $('#generateNonpreemptiveScheduling').on('click',generateNonpreemptiveSchedule);
     //testSM();
     testTiming();
 }

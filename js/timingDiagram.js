@@ -1,30 +1,39 @@
-
 function Task(name, period, execTime) {
     this.name = name;
     this.period = period;
     this.execTime = execTime;
-    this.execution = []; // x: executing, r: ready/waiting, i: idle
 }
 
-Task.prototype.isBusy(step) {
-    if (step < this.execution.length && this.execution[step] == 'x') {
+// Returns true only if the time step is a multiple of the period. i.e. the task is immediately ready
+Task.prototype.isReady = function(step) {
+    if (step % this.period == 0) {
         return true;
     }
     return false;
 }
 
-Task.prototype.createTableRow = function(hyperPeriod) {
-    var row = '<td></td>';
-    for (var timeStep = 0;timeStep < hyperPeriod;timeStep++) {
-        if (timeStep < this.execution.length && this.execution[timeStep] == 'x') {
-            row += '<td class="executing"></td>';
-        } else if (timeStep < this.execution.length && this.execution[timeStep] == 'r') {
-            row += '<td class="idle"></td>';
-        } else {
-            row += '<td></td>';
-        }
+Task.prototype.miss = function(step) { 
+    var missed = '';
+    for (var i = 0;i < this.execTime;i++) { 
+        missed += '<td class="missed"></td>';
     }
-    return row;
+    return missed;
+}
+
+Task.prototype.idle = function() {
+    return $('<td></td>').addClass('idle');
+}
+
+Task.prototype.wait = function() {
+    return $('<td></td>').addClass('wait');
+}
+
+Task.prototype.execute = function() {
+    var execute = [];
+    for (var i = 0;i < this.execTime;i++) {
+        execute.push($('<td></td>').addClass('executing'));
+    }
+    return execute;
 }
 
 function gcd(a,b) {
@@ -33,12 +42,12 @@ function gcd(a,b) {
     else { return gcd(a,b-a); }
 }
 
-function lcm(a,b,gcd) {
-    return (a * b) / gcd;
+function lcm(a,b) {
+    return (a * b) / gcd(a,b);
 }
 
-function TimingDiagram(name,div) {
-    this.div = div;
+function TimingDiagram(name) {
+    this.name = name;
     this.period = 0;
     this.hyperPeriod = 1;
     this.tasks = [];
@@ -52,21 +61,23 @@ TimingDiagram.prototype.addTask = function(newTask) {
     } else {
         /* Calculating the new system period */
         this.period = gcd(this.period,newTask.period);
-        /* Calcualting the new hyper period */
-        this.hyperPeriod = lcm(this.hyperPeriod,newTask.period,this.period);
+        /* Calculating the new hyper period */
+        this.hyperPeriod = lcm(this.hyperPeriod,newTask.period);
     }
 }
 
-TimingDiagram.prototype.print = function () {
-    var par = '<p>Period: '+this.period+'<br>';
-    par += 'Hyper Period: '+this.hyperPeriod+'<br>';
-    par += '<ul>';
+TimingDiagram.prototype.generateSummary = function () {
+    var summaryPar = $('<p></p>').attr('id',this.name+'SummaryPar');
+    summaryPar.html('Period: '+this.period+'<br>'+'Hyper Period: '+this.hyperPeriod);
+
+    var tasks = $('<ul></ul>');
     for (i in this.tasks) {
-        var currentTask = this.tasks[i];
-        par += '<li>'+currentTask.name+': ('+currentTask.period+','+currentTask.execTime+')</li>';
+        var taskSummary = this.tasks[i].name+': ('+this.tasks[i].period+','+this.tasks[i].execTime+')';
+        var currentTask = $('<li></li>').text(taskSummary);
+        tasks.append(currentTask);
     }
-    par += '</ul></p>';
-    this.div.append(par);
+    summaryPar.append(tasks);
+    return summaryPar;
 }
 
 TimingDiagram.prototype.timeSteps = function() {
@@ -85,49 +96,104 @@ TimingDiagram.prototype.timeSteps = function() {
     return timeSteps;
 }
 
-TimingDiagram.prototype.display = function() {
-    var table = $('<table></table>').addClass('timingDiagram');//.addId(name+'Table');
-    table.append('<caption>Timing Diagram</caption>');
-    /* Set up each task */
-    /* TODO: Redo this using the execute function. CreateTableRow will be changed to be called after
+TimingDiagram.prototype.setupTaskRows = function() {
+    var taskRows = [];
     for (task in this.tasks) {
-        var row = this.tasks[task].createTableRow(this.period,this.hyperPeriod);
-        table.append(row);
-    }*/
-
-    table.append(this.timeSteps());
-
-    this.div.append('<p>Period: '+this.period+'<br>Hyper Period: '+this.hyperPeriod+'</p>');
-    this.div.append(table);
+        var taskRow = [];
+        taskRow.push($('<td></td>').text(this.tasks[task].name));
+        taskRows.push(taskRow);
+    }
+    return taskRows;
 }
 
-TimingDiagram.prototype.nonPreemptive = function() {
-    var table = $('<table></table>').addClass('timingDiagram');//.addId(name+'Table');
-    table.append('<caption>Timing Diagram (Non-preemptive)</caption>');
-
-    var busy = false;
-    var ready = [];
-    var executing = [];
-    for (var timeStep = 0;timeStep < this.hyperPeriod;timeStep+=this.period) {
-        busy = false;
-        /* Is the processor still busy? */
-        for (task in executing) {
-            if (executing[task].isBusy(timeStep)) {
-                busy = true;
-            } else {
-                executing.splice(task,1);
+TimingDiagram.prototype.addTaskRows = function(taskRows,table) {
+    for (var i = 0;i < taskRows.length;i++) {
+        var currentRow = taskRows[i];
+        var row = $('<tr></tr>');
+        for (var j = 0;j < currentRow.length;j++) {
+            var currentClass = currentRow[j].attr('class');
+            var toMerge = 0;
+            for (var k = j;k < currentRow.length;k++) {
+                if (currentRow[k].attr('class') == currentClass) { 
+                    toMerge++;
+                } else {
+                    break;
+                }
             }
+            currentRow[j].attr('colspan',toMerge);
+            currentRow.splice(j+1,toMerge-1);
+            row.append(currentRow[j]);
         }
-        /* Determine which tasks are ready to execute */
+        table.append(row);
+    }
+}
+
+TimingDiagram.prototype.generateTimingDiagram = function() {
+    var table = $('<table></table>').addClass('timingDiagram');
+    table.attr('id',this.name+'Table');
+    table.append('<caption>Timing Diagram</caption>');
+    var taskRows = this.setupTaskRows();
+    for (var step = 0;step < this.hyperPeriod;step++) { 
         for (task in this.tasks) {
-            if (!busy && this.tasks[task].isReady(timeStep)) {
-                this.tasks[task].execute(timeStep);
-                busy = true;
+            if (this.tasks[task].isReady(step)) {
+                taskRows[task] = taskRows[task].concat(this.tasks[task].execute());
+            } else if (taskRows[task].length <= step+1) {
+                taskRows[task].push(this.tasks[task].idle());
             }
         }
     }
 
-    this.div.append('<p>Period: '+this.period+'<br>Hyper Period: '+this.hyperPeriod+'</p>');
-    this.div.append(table);
+    this.addTaskRows(taskRows,table);
+    table.append(this.timeSteps());
+
+    return table;
 }
 
+TimingDiagram.prototype.generateNonpreemptiveSchedule = function() {
+    var table = $('<table></table>').addClass('timingDiagram');
+    table.attr('id','nonpreemptive'+this.name);
+    table.append('<caption>Timing Diagram (Non-preemptive)</caption>');
+
+    var busy = 0;
+    var waiting = [];
+    var taskRows = this.setupTaskRows();
+    for (var timeStep = 0;timeStep < this.hyperPeriod;timeStep++) {
+        //debugger;
+        for (var waitTask = 0;waitTask < waiting.length;waitTask++) {
+            var task = waiting[waitTask];
+            if (busy == 0) {
+                taskRows[task] = taskRows[task].concat(this.tasks[task].execute());
+                waiting.splice(waitTask,1); // Removes the waiting task
+                busy = this.tasks[task].execTime;
+                waitTask--;
+            } else if (taskRows[task].length <= timeStep+busy+1) {
+                taskRows[task] = taskRows[task].concat(this.tasks[task].wait());
+            }
+        }
+        for (task in this.tasks) {
+            if (this.tasks[task].isReady(timeStep)) {
+                if (busy == 0) {
+                    taskRows[task] = taskRows[task].concat(this.tasks[task].execute());
+                    busy = this.tasks[task].execTime;
+                } else if (taskRows[task].length <= timeStep+1) {
+                    waiting.push(task);
+                    taskRows[task] = taskRows[task].concat(this.tasks[task].wait());
+                }
+            } else if (taskRows[task].length <= timeStep+1) {
+                taskRows[task].push(this.tasks[task].idle());
+            }
+        }
+        busy = busy > 0?busy-1:0;
+    }
+
+    this.addTaskRows(taskRows,table);
+    table.append(this.timeSteps());
+
+    return table;
+}
+
+TimingDiagram.prototype.clear = function() {
+    $('#'+this.name+'Table').remove();
+    $('#nonpreemptive'+this.name).remove();
+    $('#'+this.name+'SummaryPar').remove();
+}

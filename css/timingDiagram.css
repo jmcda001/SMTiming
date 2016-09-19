@@ -2,3 +2,9 @@
     background-color: blue;
     border: 1px solid black;
 }
+
+.wait {
+    background-color: lightblue;
+    border: 1 dashed black;
+    border-style: dotted none dotted dotted;
+}

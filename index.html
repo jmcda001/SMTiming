@@ -10,9 +10,25 @@
     </head>
 
     <body>
+        <div id='buttonDiv'>
+            <label for='taskName'>Task Name:</label>
+            <input id='taskName' type='string'></input><br><br>
+            <label for='taskPeriod'>Task Period:</label>
+            <input id='taskPeriod' type='number'></input><br><br>
+            <label for='taskExecTime'>Task Execution Time:</label>
+            <input id='taskExecTime' type='number'></input><br><br>
+            <button id='addTaskButton'>Add Task</button>
+        </div>
         <div id='stateMachineDiv'>
         </div>
         <div id='timingDiv'>
+            <div id='summary'></div>
+            <div id='timingDiagram'>
+                <button id='generateTimingDiagram'>Generate Timing Diagram</button>
+            </div>
+            <div id='nonpreemptiveSchedule'>
+                <button id='generateNonpreemptiveScheduling'>Generate Nonpreemptive Schedule</button>
+            </div>
         </div>
         <!-- fabric.js -->
         <script src='js/fabric.min.js'></script>
